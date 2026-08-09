@@ -1,4 +1,5 @@
 #include "operators/matmul.h"
+#include "utils/operator_utils.h"
 
 namespace infini
 {
@@ -23,11 +24,25 @@ namespace infini
 
     optional<vector<Shape>> MatmulObj::inferShape(const TensorVec &inputs)
     {
-        // =================================== 作业 ===================================
-        // TODO：返回经过 matmul 操作后的 shape
-        // REF: https://github.com/onnx/onnx/blob/main/docs/Operators.md#gemm
-        // =================================== 作业 ===================================
-        return std::nullopt;
+        IT_ASSERT(inputs.size() == 2);
+        const auto a = inputs[0]->getDims();
+        const auto b = inputs[1]->getDims();
+        IT_ASSERT(a.size() >= 2 && b.size() >= 2);
+
+        // The transpose attributes affect only the last two matrix axes.
+        m = transA ? a[a.size() - 1] : a[a.size() - 2];
+        const auto aK = transA ? a[a.size() - 2] : a[a.size() - 1];
+        const auto bK = transB ? b[b.size() - 1] : b[b.size() - 2];
+        n = transB ? b[b.size() - 2] : b[b.size() - 1];
+        IT_ASSERT(aK == bK);
+        k = aK;
+
+        Shape aBatch(a.begin(), a.end() - 2);
+        Shape bBatch(b.begin(), b.end() - 2);
+        auto output = infer_broadcast(aBatch, bBatch);
+        output.emplace_back(m);
+        output.emplace_back(n);
+        return {{output}};
     }
 
 } // namespace infini
