@@ -10,13 +10,18 @@ namespace infini
         if (permute.empty())
         {
             for (size_t i = 0; i < rank; ++i)
-            {
-                transposePermute[i] = i;
-            }
+                transposePermute.emplace_back(rank - 1 - i);
         }
         else
         {
             IT_ASSERT(rank == permute.size());
+            vector<bool> seen(rank, false);
+            for (auto axis : permute)
+            {
+                IT_ASSERT(axis >= 0 && axis < static_cast<int>(rank));
+                IT_ASSERT(!seen[axis]);
+                seen[axis] = true;
+            }
             transposePermute = std::move(permute);
         }
         IT_ASSERT(checkValid(graph));
@@ -27,14 +32,10 @@ namespace infini
         const auto A = inputs[0];
         auto input_dim = A->getDims();
         auto output_dim = input_dim;
-        int rank = A->getRank();
+        for (size_t i = 0; i < transposePermute.size(); ++i)
+            output_dim[i] = input_dim[transposePermute[i]];
 
-        // =================================== 作业 ===================================
-        // TODO：修改 output_dim，返回正确的 transpose 后的 shape
-        // REF: https://onnx.ai/onnx/operators/onnx__Transpose.html#transpose-21
-        // =================================== 作业 ===================================
-
-        return std::nullopt;
+        return {{output_dim}};
     }
 
     std::string TransposeObj::toString() const
