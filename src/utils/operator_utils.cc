@@ -1,6 +1,8 @@
 #include "utils/operator_utils.h"
 #include "core/runtime.h"
 
+#include <algorithm>
+
 namespace infini {
 
 Shape infer_broadcast(const Shape &A, const Shape &B) {
@@ -10,7 +12,18 @@ Shape infer_broadcast(const Shape &A, const Shape &B) {
     // REF: https://github.com/onnx/onnx/blob/main/docs/Broadcasting.md
     // =================================== 作业 ===================================
     
-    return {};
+    const auto rank = std::max(A.size(), B.size());
+    Shape output(rank, 1);
+
+    for (size_t i = 0; i < rank; ++i) {
+        const auto a = i < A.size() ? A[A.size() - 1 - i] : 1;
+        const auto b = i < B.size() ? B[B.size() - 1 - i] : 1;
+        IT_ASSERT(a == b || a == 1 || b == 1);
+
+        // Prefer the non-singleton dimension, including zero-sized axes.
+        output[rank - 1 - i] = a == 1 ? b : a;
+    }
+    return output;
 }
 
 int get_real_axis(const int &axis, const int &rank) {
