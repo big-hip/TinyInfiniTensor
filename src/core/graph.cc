@@ -148,10 +148,38 @@ namespace infini
         // topological sorting first
         IT_ASSERT(topo_sort() == true);
 
-        // =================================== 作业 ===================================
-        // TODO：利用 allocator 给计算图分配内存
-        // HINT: 获取分配好的内存指针后，可以调用 tensor 的 setDataBlob 函数给 tensor 绑定内存
-        // =================================== 作业 ===================================
+        // Count uses in execution order. A tensor remains live until its last
+        // consumer has finished, allowing the allocator to reuse its storage.
+        map<Tensor, size_t> remainingUses;
+        for (const auto &op : ops)
+            for (const auto &input : op->getInputs())
+                ++remainingUses[input];
+
+        map<Tensor, size_t> offsets;
+        for (const auto &op : ops)
+        {
+            for (const auto &input : op->getInputs())
+            {
+                if (offsets.find(input) == offsets.end())
+                    offsets.emplace(input, allocator.alloc(input->getBytes()));
+            }
+            for (const auto &output : op->getOutputs())
+            {
+                IT_ASSERT(offsets.find(output) == offsets.end());
+                offsets.emplace(output, allocator.alloc(output->getBytes()));
+            }
+
+            for (const auto &input : op->getInputs())
+            {
+                auto uses = --remainingUses[input];
+                if (uses == 0)
+                    allocator.free(offsets.at(input), input->getBytes());
+            }
+        }
+
+        auto base = static_cast<char *>(allocator.getPtr());
+        for (const auto &[tensor, offset] : offsets)
+            tensor->setDataBlob(make_ref<BlobObj>(runtime, base + offset));
 
         allocator.info();
     }

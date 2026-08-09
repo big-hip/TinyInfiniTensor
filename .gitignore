@@ -34,6 +34,8 @@
 build/
 build_debug/
 
+docs/teaching-homework-*.md
+
 .vscode/
 
 # python
